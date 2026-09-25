@@ -171,3 +171,8 @@ if "results" in st.session_state:
         with st.expander(f"Pages requiring attention ({len(notices)})"):
             for notice in notices:
                 st.warning(notice)
+
+st.markdown(
+    '<p style="border-top: 1px solid #c9c7bd; margin-top: 3rem; padding-top: 1rem; text-align: center; color: #59615e; font-size: 0.85rem;">Developed by Dr Ravi Suppiah ETS@HCT</p>',
+    unsafe_allow_html=True,
+)
