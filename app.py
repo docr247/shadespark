@@ -1,0 +1,173 @@
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+import pandas as pd
+import streamlit as st
+
+from export_results import build_results_workbook
+from pdf_processing import render_pdf_pages, scan_pdf
+from scanner import ScanError, scan_image
+
+APP_DIR = Path(__file__).parent
+TEMPLATE_PATH = APP_DIR / "MCQ_Answer_Sheet_50_Questions.pdf"
+
+st.set_page_config(page_title="ShadeSpark", page_icon="✓", layout="wide")
+st.markdown(
+    """
+    <style>
+    .stApp { background: #f5f4ef; color: #17201d; }
+    [data-testid="stHeader"] { background: transparent; }
+    h1, h2, h3 { font-family: Georgia, serif; letter-spacing: 0; }
+    .block-container { max-width: 1280px; padding-top: 2.2rem; }
+    div[data-testid="stMetric"] { border-top: 3px solid #247158; padding-top: .8rem; }
+    @media (max-width: 480px) {
+        h1 { font-size: 2.5rem !important; }
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+st.title("ShadeSpark")
+st.caption("Optical marking for the 50-question MCQ answer sheet")
+
+with st.sidebar:
+    st.header("Answer sheet")
+    st.download_button(
+        "Download blank PDF",
+        data=TEMPLATE_PATH.read_bytes(),
+        file_name=TEMPLATE_PATH.name,
+        mime="application/pdf",
+        use_container_width=True,
+    )
+    st.markdown("Print at **Actual size / 100%** and scan the complete A4 page with all four corner squares visible.")
+
+st.subheader("1. Answer key")
+is_answer_key = st.checkbox("This upload is the answer key", value=True)
+answer_key_file = st.file_uploader(
+    "Upload one completed answer-key PDF",
+    type=["pdf"],
+    accept_multiple_files=False,
+    disabled=not is_answer_key,
+    key="answer-key",
+)
+
+st.subheader("2. Student scripts")
+student_files = st.file_uploader(
+    "Upload one or more PDFs. Each page must contain one student's answer sheet.",
+    type=["pdf"],
+    accept_multiple_files=True,
+    key="student-scripts",
+)
+
+
+def process_uploads() -> tuple[tuple[str, ...], list[dict[str, Any]], list[str]]:
+    if answer_key_file is None:
+        raise ScanError("Upload the single-page answer key first.")
+    if not student_files:
+        raise ScanError("Upload at least one student PDF.")
+
+    key_pages = render_pdf_pages(answer_key_file.getvalue())
+    if len(key_pages) != 1:
+        raise ScanError("The answer key must be a single-page PDF.")
+    key_scan = scan_image(key_pages[0])
+    missing = [index + 1 for index, answer in enumerate(key_scan.answers) if answer is None]
+    if missing:
+        raise ScanError("The answer key has blank or ambiguous answers: " + ", ".join(map(str, missing)))
+    answer_key = tuple(answer for answer in key_scan.answers if answer is not None)
+
+    records: list[dict[str, Any]] = []
+    notices: list[str] = []
+    for uploaded_file in student_files:
+        for page_scan in scan_pdf(uploaded_file.getvalue(), uploaded_file.name):
+            if page_scan.error is not None or page_scan.result is None:
+                notices.append(f"{page_scan.source}, page {page_scan.page}: {page_scan.error}")
+                continue
+            result = page_scan.result
+            if result.student_id is None:
+                notices.append(f"{page_scan.source}, page {page_scan.page}: student ID requires review; page skipped.")
+                continue
+            score = sum(selected == correct for selected, correct in zip(result.answers, answer_key, strict=True))
+            records.append(
+                {
+                    "student_id": result.student_id,
+                    "crn": result.crn,
+                    "answers": result.answers,
+                    "score": score,
+                    "percentage": score * 2.0,
+                    "source": page_scan.source,
+                    "page": page_scan.page,
+                    "warnings": " ".join(result.warnings),
+                }
+            )
+
+    if not records:
+        raise ScanError("No student pages with a readable shaded ID were found.")
+    return answer_key, records, notices
+
+
+if st.button("Scan and mark", type="primary", use_container_width=True):
+    try:
+        with st.spinner("Aligning pages, reading marks, and calculating grades..."):
+            key, results, scan_notices = process_uploads()
+        st.session_state["answer_key"] = key
+        st.session_state["results"] = results
+        st.session_state["scan_notices"] = scan_notices
+    except ScanError as exc:
+        st.error(str(exc))
+    except Exception as exc:
+        st.error(f"Processing failed: {exc}")
+
+if "results" in st.session_state:
+    records = st.session_state["results"]
+    answer_key = st.session_state["answer_key"]
+    notices = st.session_state.get("scan_notices", [])
+
+    st.divider()
+    st.subheader("Results dashboard")
+    crn_values = sorted({record["crn"] for record in records if record["crn"]})
+    selected_crn = st.selectbox("Filter by CRN", ["All CRNs", *crn_values])
+    filtered = records if selected_crn == "All CRNs" else [record for record in records if record["crn"] == selected_crn]
+
+    scores = np.array([record["score"] for record in filtered])
+    metric_columns = st.columns(4)
+    metric_columns[0].metric("Students", len(filtered))
+    metric_columns[1].metric("Average", f"{scores.mean():.1f} / 50")
+    metric_columns[2].metric("Median", f"{np.median(scores):.1f} / 50")
+    metric_columns[3].metric("Highest", f"{scores.max()} / 50")
+
+    chart_column, table_column = st.columns([2, 3])
+    with chart_column:
+        st.markdown("#### Grade distribution")
+        counts, edges = np.histogram(scores, bins=[0, 10, 20, 30, 40, 46, 51])
+        labels = ["0–9", "10–19", "20–29", "30–39", "40–45", "46–50"]
+        st.bar_chart(pd.DataFrame({"Score band": labels, "Students": counts}).set_index("Score band"))
+    with table_column:
+        st.markdown("#### Student grades")
+        display = pd.DataFrame(
+            {
+                "Student ID": [record["student_id"] for record in filtered],
+                "CRN": [record["crn"] or "Needs review" for record in filtered],
+                "Score": [record["score"] for record in filtered],
+                "Percent": [f'{record["percentage"]:.1f}%' for record in filtered],
+                "Source": [f'{record["source"]} p.{record["page"]}' for record in filtered],
+            }
+        )
+        st.dataframe(display, hide_index=True, use_container_width=True)
+
+    workbook = build_results_workbook(answer_key, records)
+    st.download_button(
+        "Download marked Excel workbook",
+        workbook,
+        file_name="shadespark_results.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        type="primary",
+    )
+
+    if notices:
+        with st.expander(f"Pages requiring attention ({len(notices)})"):
+            for notice in notices:
+                st.warning(notice)

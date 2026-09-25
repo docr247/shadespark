@@ -1,0 +1,74 @@
+from __future__ import annotations
+
+from io import BytesIO
+from typing import Any
+
+from openpyxl import Workbook
+from openpyxl.comments import Comment
+from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.utils import get_column_letter
+
+CORRECT_FILL = PatternFill("solid", fgColor="C6EFCE")
+WRONG_FILL = PatternFill("solid", fgColor="FFC7CE")
+BLANK_FILL = PatternFill("solid", fgColor="FFEB9C")
+HEADER_FILL = PatternFill("solid", fgColor="D9EAF7")
+
+
+def build_results_workbook(answer_key: tuple[str, ...], records: list[dict[str, Any]]) -> bytes:
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "MCQ Results"
+
+    sheet.cell(1, 1, "ANSWER KEY")
+    for question, answer in enumerate(answer_key, start=1):
+        cell = sheet.cell(1, question + 1, answer)
+        cell.fill = CORRECT_FILL
+        cell.comment = Comment(f"Question {question}", "ShadeSpark")
+    sheet.cell(1, 52, "MAX SCORE")
+    sheet.cell(1, 53, "PERCENT")
+    sheet.cell(1, 54, "CRN")
+    sheet.cell(1, 55, "SOURCE")
+
+    for row_number, record in enumerate(records, start=2):
+        sheet.cell(row_number, 1, record["student_id"])
+        for question, (selected, correct) in enumerate(
+            zip(record["answers"], answer_key, strict=True), start=1
+        ):
+            cell = sheet.cell(row_number, question + 1, selected or "-")
+            cell.fill = CORRECT_FILL if selected == correct else (BLANK_FILL if selected is None else WRONG_FILL)
+        sheet.cell(row_number, 52, record["score"])
+        sheet.cell(row_number, 53, record["percentage"] / 100)
+        sheet.cell(row_number, 53).number_format = "0.0%"
+        sheet.cell(row_number, 54, record["crn"] or "")
+        sheet.cell(row_number, 55, f'{record["source"]} / page {record["page"]}')
+
+    for cell in sheet[1]:
+        cell.font = Font(bold=True)
+        if cell.fill.fill_type is None:
+            cell.fill = HEADER_FILL
+        cell.alignment = Alignment(horizontal="center")
+
+    sheet.freeze_panes = "B2"
+    sheet.auto_filter.ref = f"A1:{get_column_letter(55)}{max(len(records) + 1, 2)}"
+    sheet.column_dimensions["A"].width = 16
+    for column in range(2, 52):
+        sheet.column_dimensions[get_column_letter(column)].width = 4
+    sheet.column_dimensions[get_column_letter(52)].width = 12
+    sheet.column_dimensions[get_column_letter(53)].width = 12
+    sheet.column_dimensions[get_column_letter(54)].width = 10
+    sheet.column_dimensions[get_column_letter(55)].width = 34
+
+    legend = workbook.create_sheet("Legend")
+    legend.append(["Color", "Meaning"])
+    legend.append(["Green", "Correct answer"])
+    legend.append(["Red", "Wrong answer"])
+    legend.append(["Yellow", "Blank or ambiguous answer"])
+    legend["A2"].fill = CORRECT_FILL
+    legend["A3"].fill = WRONG_FILL
+    legend["A4"].fill = BLANK_FILL
+    legend.column_dimensions["A"].width = 16
+    legend.column_dimensions["B"].width = 34
+
+    output = BytesIO()
+    workbook.save(output)
+    return output.getvalue()
