@@ -8,6 +8,7 @@ import pandas as pd
 import streamlit as st
 
 from export_results import build_results_workbook
+from grading import grade_answers
 from pdf_processing import render_pdf_pages, scan_pdf
 from scanner import ScanError, scan_image
 
@@ -74,9 +75,9 @@ def process_uploads() -> tuple[tuple[str, ...], list[dict[str, Any]], list[str]]
     if len(key_pages) != 1:
         raise ScanError("The answer key must be a single-page PDF.")
     key_scan = scan_image(key_pages[0])
-    missing = [index + 1 for index, answer in enumerate(key_scan.answers) if answer is None]
-    if missing:
-        raise ScanError("The answer key has blank or ambiguous answers: " + ", ".join(map(str, missing)))
+    invalid = [index + 1 for index, answer in enumerate(key_scan.answers) if answer is None or len(answer) != 1]
+    if invalid:
+        raise ScanError("The answer key must have exactly one answer per question. Review: " + ", ".join(map(str, invalid)))
     answer_key = tuple(answer for answer in key_scan.answers if answer is not None)
 
     records: list[dict[str, Any]] = []
@@ -90,14 +91,16 @@ def process_uploads() -> tuple[tuple[str, ...], list[dict[str, Any]], list[str]]
             if result.student_id is None:
                 notices.append(f"{page_scan.source}, page {page_scan.page}: student ID requires review; page skipped.")
                 continue
-            score = sum(selected == correct for selected, correct in zip(result.answers, answer_key, strict=True))
+            outcomes, score, grading_complete = grade_answers(result.answers, answer_key)
             records.append(
                 {
                     "student_id": result.student_id,
                     "crn": result.crn,
                     "answers": result.answers,
+                    "outcomes": outcomes,
                     "score": score,
                     "percentage": score * 2.0,
+                    "grading_status": "Complete" if grading_complete else "Incomplete",
                     "source": page_scan.source,
                     "page": page_scan.page,
                     "warnings": " ".join(result.warnings),
@@ -153,6 +156,7 @@ if "results" in st.session_state:
                 "CRN": [record["crn"] or "Needs review" for record in filtered],
                 "Score": [record["score"] for record in filtered],
                 "Percent": [f'{record["percentage"]:.1f}%' for record in filtered],
+                "Grading": [record["grading_status"] for record in filtered],
                 "Source": [f'{record["source"]} p.{record["page"]}' for record in filtered],
             }
         )

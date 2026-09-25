@@ -17,7 +17,7 @@ from scanner import (
 )
 
 
-def _synthetic_sheet() -> tuple[bytes, str, str, tuple[str, ...]]:
+def _synthetic_sheet(multiple_question: int | None = None) -> tuple[bytes, str, str, tuple[str, ...]]:
     page = np.full((PAGE_HEIGHT, PAGE_WIDTH, 3), 255, dtype=np.uint8)
     for x, y in MARKER_TARGETS:
         cv2.rectangle(page, (round(x - 16), round(y - 16)), (round(x + 16), round(y + 16)), (0, 0, 0), -1)
@@ -32,6 +32,9 @@ def _synthetic_sheet() -> tuple[bytes, str, str, tuple[str, ...]]:
     for question, answer in enumerate(answers):
         group, row = divmod(question, 10)
         cv2.circle(page, (round(ANSWER_X[group][OPTIONS.index(answer)]), round(ANSWER_Y[row])), 7, (0, 0, 0), -1)
+        if question == multiple_question:
+            extra_answer = OPTIONS[(OPTIONS.index(answer) + 1) % len(OPTIONS)]
+            cv2.circle(page, (round(ANSWER_X[group][OPTIONS.index(extra_answer)]), round(ANSWER_Y[row])), 7, (0, 0, 0), -1)
 
     source = np.float32([[0, 0], [PAGE_WIDTH, 0], [0, PAGE_HEIGHT], [PAGE_WIDTH, PAGE_HEIGHT]])
     destination = np.float32([[30, 25], [PAGE_WIDTH - 20, 5], [10, PAGE_HEIGHT - 15], [PAGE_WIDTH - 35, PAGE_HEIGHT - 30]])
@@ -49,3 +52,10 @@ def test_scans_perspective_corrected_sheet() -> None:
     assert result.crn == crn
     assert result.answers == answers
     assert result.warnings == ()
+
+
+def test_preserves_multiple_shaded_answers() -> None:
+    image, _, _, answers = _synthetic_sheet(multiple_question=0)
+    result = scan_image(image)
+    assert result.answers[0] == answers[0] + answers[1]
+    assert result.statuses[0] == "multiple"

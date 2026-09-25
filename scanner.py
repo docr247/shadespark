@@ -111,6 +111,15 @@ def _read_mark(scores: list[float], labels: str, minimum: float = 0.28) -> Mark:
     return Mark(labels[best_index], confidence, "ok")
 
 
+def _read_answer(scores: list[float], minimum: float = 0.28) -> Mark:
+    selected = "".join(label for label, score in zip(OPTIONS, scores, strict=True) if score >= minimum)
+    if not selected:
+        return Mark(None, 0.0, "blank")
+    if len(selected) > 1:
+        return Mark(selected, 0.0, "multiple")
+    return Mark(selected, max(scores), "ok")
+
+
 def _read_digits(gray: np.ndarray, x_positions: tuple[float, ...]) -> str | None:
     digits: list[str] = []
     for x in x_positions:
@@ -131,7 +140,7 @@ def scan_aligned_page(gray: np.ndarray) -> ScanResult:
     for group in range(5):
         for row in range(10):
             scores = [_darkness(gray, x, ANSWER_Y[row]) for x in ANSWER_X[group]]
-            mark = _read_mark(scores, OPTIONS)
+            mark = _read_answer(scores)
             answers.append(mark.value)
             statuses.append(mark.status)
 
@@ -140,9 +149,9 @@ def scan_aligned_page(gray: np.ndarray) -> ScanResult:
         warnings.append("Student ID is incomplete or ambiguous.")
     if crn is None:
         warnings.append("CRN is incomplete or ambiguous.")
-    problem_answers = [index + 1 for index, status in enumerate(statuses) if status != "ok"]
+    problem_answers = [index + 1 for index, status in enumerate(statuses) if status == "blank"]
     if problem_answers:
-        warnings.append("Review blank or ambiguous questions: " + ", ".join(map(str, problem_answers)))
+        warnings.append("Blank questions: " + ", ".join(map(str, problem_answers)))
 
     return ScanResult(
         student_id=f"H{id_digits}" if id_digits is not None else None,
