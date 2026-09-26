@@ -35,7 +35,10 @@ def questions_requiring_review(answers: tuple[str | None, ...]) -> tuple[int, ..
 def describe_multiple_selection(selected: str, correct: str) -> str:
     incorrect = tuple(option for option in selected if option != correct)
     if correct not in selected:
-        return f"Multiple selection, all incorrect (selected options {', '.join(incorrect)})."
+        return (
+            f"Multiple selection, all incorrect (selected options {', '.join(incorrect)}); "
+            f"correct option {correct}."
+        )
     label = "option" if len(incorrect) == 1 else "options"
     return (
         f"Multiple selection, correct option {correct} together with "

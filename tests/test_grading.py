@@ -23,7 +23,7 @@ def test_questions_requiring_review_returns_all_multiple_answer_positions() -> N
 
 def test_multiple_selection_descriptions_distinguish_issue_types() -> None:
     assert describe_multiple_selection("BC", "A") == (
-        "Multiple selection, all incorrect (selected options B, C)."
+        "Multiple selection, all incorrect (selected options B, C); correct option A."
     )
     assert describe_multiple_selection("ABD", "A") == (
         "Multiple selection, correct option A together with incorrect options B, D."
@@ -55,7 +55,9 @@ def test_workbook_highlights_inconclusive_answers_and_status() -> None:
         "Multiple selection, correct option A together with incorrect option B."
     )
     assert sheet.cell(2, 3).fill.fgColor.rgb.endswith("BDD7EE")
-    assert sheet.cell(2, 3).comment.text == "Multiple selection, all incorrect (selected options B, C)."
+    assert sheet.cell(2, 3).comment.text == (
+        "Multiple selection, all incorrect (selected options B, C); correct option A."
+    )
     assert sheet.cell(2, 4).fill.fgColor.rgb.endswith("C6EFCE")
     assert sheet.cell(2, 5).fill.fgColor.rgb.endswith("FFEB9C")
     assert sheet.cell(2, 55).value == "Partial"
