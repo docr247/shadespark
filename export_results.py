@@ -48,7 +48,7 @@ def build_results_workbook(answer_key: tuple[str, ...], records: list[dict[str, 
         sheet.cell(row_number, 53).number_format = "0.0%"
         sheet.cell(row_number, 54, record["crn"] or "")
         status_cell = sheet.cell(row_number, 55, record["grading_status"])
-        if record["grading_status"] == "Incomplete":
+        if record["grading_status"] == "Partial":
             status_cell.fill = INCONCLUSIVE_FILL
         sheet.cell(row_number, 56, f'{record["source"]} / page {record["page"]}')
 

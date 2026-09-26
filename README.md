@@ -19,4 +19,4 @@ streamlit run app.py
 4. Upload the key and one or more student PDFs, then select **Scan and mark**.
 5. Review the CRN-filtered dashboard and download the Excel workbook.
 
-For reliable recognition, fill bubbles fully with a dark pencil or black pen. Keep all four corner squares visible, avoid shadows, and scan near 300 DPI. Pages with unreadable IDs are skipped and listed for review. Multiple shaded options that include both the correct answer and a wrong answer are marked inconclusive in blue, and the student's grading status is shown as incomplete. Multiple selections containing only wrong answers are conclusively wrong.
+For reliable recognition, fill bubbles fully with a dark pencil or black pen. Keep all four corner squares visible, avoid shadows, and scan near 300 DPI. Pages with unreadable IDs are skipped and listed for review. Multiple shaded options that include both the correct answer and a wrong answer are marked inconclusive in blue, and the student's grading status is shown as partial. Multiple selections containing only wrong answers are conclusively wrong. The dashboard can filter all summary and question-level results by any unique CRN.

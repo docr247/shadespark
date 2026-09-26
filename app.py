@@ -100,7 +100,7 @@ def process_uploads() -> tuple[tuple[str, ...], list[dict[str, Any]], list[str]]
                     "outcomes": outcomes,
                     "score": score,
                     "percentage": score * 2.0,
-                    "grading_status": "Complete" if grading_complete else "Incomplete",
+                    "grading_status": "Complete" if grading_complete else "Partial",
                     "source": page_scan.source,
                     "page": page_scan.page,
                     "warnings": " ".join(result.warnings),
@@ -132,7 +132,7 @@ if "results" in st.session_state:
     st.divider()
     st.subheader("Results dashboard")
     crn_values = sorted({record["crn"] for record in records if record["crn"]})
-    selected_crn = st.selectbox("Filter by CRN", ["All CRNs", *crn_values])
+    selected_crn = st.selectbox("Select CRN", ["All CRNs", *crn_values])
     filtered = records if selected_crn == "All CRNs" else [record for record in records if record["crn"] == selected_crn]
 
     scores = np.array([record["score"] for record in filtered])
@@ -142,25 +142,72 @@ if "results" in st.session_state:
     metric_columns[2].metric("Median", f"{np.median(scores):.1f} / 50")
     metric_columns[3].metric("Highest", f"{scores.max()} / 50")
 
-    chart_column, table_column = st.columns([2, 3])
-    with chart_column:
-        st.markdown("#### Grade distribution")
-        counts, edges = np.histogram(scores, bins=[0, 10, 20, 30, 40, 46, 51])
-        labels = ["0–9", "10–19", "20–29", "30–39", "40–45", "46–50"]
-        st.bar_chart(pd.DataFrame({"Score band": labels, "Students": counts}).set_index("Score band"))
-    with table_column:
-        st.markdown("#### Student grades")
-        display = pd.DataFrame(
-            {
-                "Student ID": [record["student_id"] for record in filtered],
-                "CRN": [record["crn"] or "Needs review" for record in filtered],
-                "Score": [record["score"] for record in filtered],
-                "Percent": [f'{record["percentage"]:.1f}%' for record in filtered],
-                "Grading": [record["grading_status"] for record in filtered],
-                "Source": [f'{record["source"]} p.{record["page"]}' for record in filtered],
+    summary_tab, detail_tab = st.tabs(["Summary", "Detailed responses"])
+    with summary_tab:
+        chart_column, table_column = st.columns([2, 3])
+        with chart_column:
+            st.markdown("#### Grade distribution")
+            counts, _ = np.histogram(scores, bins=[0, 10, 20, 30, 40, 46, 51])
+            labels = ["0–9", "10–19", "20–29", "30–39", "40–45", "46–50"]
+            st.bar_chart(pd.DataFrame({"Score band": labels, "Students": counts}).set_index("Score band"))
+        with table_column:
+            st.markdown("#### Student grades")
+            display = pd.DataFrame(
+                {
+                    "Student ID": [record["student_id"] for record in filtered],
+                    "CRN": [record["crn"] or "Needs review" for record in filtered],
+                    "Score": [record["score"] for record in filtered],
+                    "Percent": [f'{record["percentage"]:.1f}%' for record in filtered],
+                    "Grading": [record["grading_status"] for record in filtered],
+                    "Source": [f'{record["source"]} p.{record["page"]}' for record in filtered],
+                }
+            )
+            st.dataframe(display, hide_index=True, use_container_width=True)
+
+    with detail_tab:
+        st.markdown("#### Question-level responses")
+        detail_rows = []
+        outcome_by_cell: dict[tuple[int, str], str] = {}
+        for row_index, record in enumerate(filtered):
+            row: dict[str, Any] = {
+                "Student ID": record["student_id"],
+                "CRN": record["crn"] or "Needs review",
             }
+            for question, (answer, outcome) in enumerate(
+                zip(record["answers"], record["outcomes"], strict=True), start=1
+            ):
+                column = f"Q{question}"
+                row[column] = "/".join(answer) if answer else "-"
+                outcome_by_cell[(row_index, column)] = "blank" if answer is None else outcome
+            row.update(
+                {
+                    "Score": record["score"],
+                    "Percent": f'{record["percentage"]:.1f}%',
+                    "Grading": record["grading_status"],
+                }
+            )
+            detail_rows.append(row)
+
+        detailed = pd.DataFrame(detail_rows)
+        detail_styles = pd.DataFrame("", index=detailed.index, columns=detailed.columns)
+        outcome_colors = {
+            "correct": "background-color: #c6efce",
+            "inconclusive": "background-color: #bdd7ee",
+            "wrong": "background-color: #ffc7ce",
+            "blank": "background-color: #ffeb9c",
+        }
+        for (row_index, column), outcome in outcome_by_cell.items():
+            detail_styles.loc[row_index, column] = outcome_colors[outcome]
+        for row_index, record in enumerate(filtered):
+            if record["grading_status"] == "Partial":
+                detail_styles.loc[row_index, "Grading"] = "background-color: #bdd7ee"
+
+        st.dataframe(
+            detailed.style.apply(lambda _: detail_styles, axis=None),
+            hide_index=True,
+            use_container_width=True,
+            height=min(700, 38 + 35 * len(detailed)),
         )
-        st.dataframe(display, hide_index=True, use_container_width=True)
 
     workbook = build_results_workbook(answer_key, records)
     st.download_button(

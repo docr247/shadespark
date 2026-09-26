@@ -26,7 +26,7 @@ def test_workbook_highlights_inconclusive_answers_and_status() -> None:
         "outcomes": outcomes,
         "score": score,
         "percentage": score * 2.0,
-        "grading_status": "Complete" if complete else "Incomplete",
+        "grading_status": "Complete" if complete else "Partial",
         "source": "scripts.pdf",
         "page": 1,
     }
@@ -39,5 +39,5 @@ def test_workbook_highlights_inconclusive_answers_and_status() -> None:
     assert sheet.cell(2, 3).fill.fgColor.rgb.endswith("FFC7CE")
     assert sheet.cell(2, 4).fill.fgColor.rgb.endswith("C6EFCE")
     assert sheet.cell(2, 5).fill.fgColor.rgb.endswith("FFEB9C")
-    assert sheet.cell(2, 55).value == "Incomplete"
+    assert sheet.cell(2, 55).value == "Partial"
     assert sheet.cell(2, 55).fill.fgColor.rgb.endswith("BDD7EE")
