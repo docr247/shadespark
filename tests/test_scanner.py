@@ -64,7 +64,8 @@ def test_preserves_multiple_shaded_answers() -> None:
 
 def test_annotates_every_question_with_grading_mark() -> None:
     image, _, _, _ = _synthetic_sheet()
-    outcomes = tuple("correct" if question % 2 == 0 else "wrong" for question in range(50))
+    outcome_cycle = ("correct", "wrong", "inconclusive")
+    outcomes = tuple(outcome_cycle[question % 3] for question in range(50))
 
     marked_bytes = annotate_image(image, outcomes)
     marked = cv2.imdecode(np.frombuffer(marked_bytes, dtype=np.uint8), cv2.IMREAD_COLOR)
@@ -77,5 +78,7 @@ def test_annotates_every_question_with_grading_mark() -> None:
         region = marked[center_y - 14 : center_y + 15, center_x - 14 : center_x + 15]
         if outcome == "correct":
             assert np.any((region[:, :, 1] > 100) & (region[:, :, 1] > region[:, :, 2] * 2))
-        else:
+        elif outcome == "wrong":
             assert np.any((region[:, :, 2] > 150) & (region[:, :, 2] > region[:, :, 1] * 2))
+        else:
+            assert np.any((region[:, :, 0] > 150) & (region[:, :, 0] > region[:, :, 2] * 2))

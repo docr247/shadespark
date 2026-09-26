@@ -182,12 +182,20 @@ def annotate_image(
         center_y = round(ANSWER_Y[row])
         if outcome == "correct":
             color = (45, 145, 60)
-            cv2.line(marked, (center_x - 10, center_y), (center_x - 3, center_y + 8), color, 4, cv2.LINE_AA)
-            cv2.line(marked, (center_x - 3, center_y + 8), (center_x + 12, center_y - 10), color, 4, cv2.LINE_AA)
-        else:
+            cv2.line(marked, (center_x - 7, center_y), (center_x - 2, center_y + 6), color, 3, cv2.LINE_AA)
+            cv2.line(marked, (center_x - 2, center_y + 6), (center_x + 9, center_y - 8), color, 3, cv2.LINE_AA)
+        elif outcome == "wrong":
             color = (45, 45, 210)
-            cv2.line(marked, (center_x - 9, center_y - 9), (center_x + 9, center_y + 9), color, 4, cv2.LINE_AA)
-            cv2.line(marked, (center_x + 9, center_y - 9), (center_x - 9, center_y + 9), color, 4, cv2.LINE_AA)
+            cv2.line(marked, (center_x - 7, center_y - 7), (center_x + 7, center_y + 7), color, 3, cv2.LINE_AA)
+            cv2.line(marked, (center_x + 7, center_y - 7), (center_x - 7, center_y + 7), color, 3, cv2.LINE_AA)
+        else:
+            color = (210, 105, 45)
+            font = cv2.FONT_HERSHEY_DUPLEX
+            scale = 0.52
+            thickness = 2
+            (text_width, text_height), _ = cv2.getTextSize("?", font, scale, thickness)
+            origin = (center_x - text_width // 2, center_y + text_height // 2)
+            cv2.putText(marked, "?", origin, font, scale, color, thickness, cv2.LINE_AA)
 
     encoded, png = cv2.imencode(".png", marked)
     if not encoded:
