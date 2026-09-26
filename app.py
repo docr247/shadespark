@@ -22,6 +22,10 @@ st.markdown(
     .stApp { background: #f5f4ef; color: #17201d; }
     [data-testid="stHeader"] { background: transparent; }
     h1, h2, h3 { font-family: Georgia, serif; letter-spacing: 0; }
+    .stApp p, .stApp label, .stApp button, .stApp input, .stApp textarea,
+    .stApp [role="option"], .stApp [role="gridcell"], .stApp [role="columnheader"] {
+        font-size: 1.0625rem;
+    }
     .block-container { max-width: 1280px; padding-top: 2.2rem; }
     div[data-testid="stMetric"] { border-top: 3px solid #247158; padding-top: .8rem; }
     @media (max-width: 480px) {
