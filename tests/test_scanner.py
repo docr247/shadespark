@@ -75,7 +75,7 @@ def test_annotates_every_question_with_grading_mark() -> None:
         group, row = divmod(question, 10)
         center_x = round(ANSWER_X[group][0] - 46)
         center_y = round(ANSWER_Y[row])
-        region = marked[center_y - 14 : center_y + 15, center_x - 14 : center_x + 15]
+        region = marked[center_y - 14 : center_y + 15, center_x - 14 : center_x + 15].astype(np.int16)
         if outcome == "correct":
             assert np.any((region[:, :, 1] > 100) & (region[:, :, 1] > region[:, :, 2] * 2))
         elif outcome == "wrong":

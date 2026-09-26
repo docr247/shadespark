@@ -14,6 +14,7 @@ from scanner import ScanError, annotate_image, scan_image
 
 APP_DIR = Path(__file__).parent
 TEMPLATE_PATH = APP_DIR / "MCQ_Answer_Sheet_50_Questions.pdf"
+MARKING_STYLE_VERSION = 2
 
 st.set_page_config(page_title="ShadeSpark", page_icon="✓", layout="wide")
 st.markdown(
@@ -41,7 +42,9 @@ st.caption("Optical Marking Made Easy")
 
 
 @st.cache_data(show_spinner=False)
-def render_marked_script(image: bytes, outcomes: tuple[AnswerOutcome, ...]) -> bytes:
+def render_marked_script(
+    image: bytes, outcomes: tuple[AnswerOutcome, ...], style_version: int
+) -> bytes:
     return annotate_image(image, outcomes)
 
 with st.sidebar:
@@ -219,7 +222,9 @@ if "results" in st.session_state:
                     ),
                 )
                 displayed_image = (
-                    render_marked_script(script_image, selected_record["outcomes"])
+                    render_marked_script(
+                        script_image, selected_record["outcomes"], MARKING_STYLE_VERSION
+                    )
                     if show_marking
                     else script_image
                 )
