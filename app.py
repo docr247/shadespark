@@ -33,7 +33,7 @@ st.markdown(
 )
 
 st.title("ShadeSpark")
-st.caption("Optical marking for the 50-question MCQ answer sheet")
+st.caption("Optical Marking Made Easy")
 
 with st.sidebar:
     st.header("Answer sheet")
