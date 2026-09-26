@@ -5,7 +5,7 @@ from io import BytesIO
 from openpyxl import load_workbook
 
 from export_results import build_results_workbook
-from grading import grade_answer, grade_answers, questions_requiring_review
+from grading import describe_multiple_selection, grade_answer, grade_answers, questions_requiring_review
 
 
 def test_multiple_answer_grading_rules() -> None:
@@ -19,6 +19,15 @@ def test_questions_requiring_review_returns_all_multiple_answer_positions() -> N
     answers = ("A", "AB", None, "CD")
 
     assert questions_requiring_review(answers) == (2, 4)
+
+
+def test_multiple_selection_descriptions_distinguish_issue_types() -> None:
+    assert describe_multiple_selection("BC", "A") == (
+        "Multiple selection, all incorrect (selected options B, C)."
+    )
+    assert describe_multiple_selection("ABD", "A") == (
+        "Multiple selection, correct option A together with incorrect options B, D."
+    )
 
 
 def test_workbook_highlights_inconclusive_answers_and_status() -> None:
@@ -42,7 +51,11 @@ def test_workbook_highlights_inconclusive_answers_and_status() -> None:
 
     assert sheet.cell(2, 2).value == "A/B"
     assert sheet.cell(2, 2).fill.fgColor.rgb.endswith("BDD7EE")
+    assert sheet.cell(2, 2).comment.text == (
+        "Multiple selection, correct option A together with incorrect option B."
+    )
     assert sheet.cell(2, 3).fill.fgColor.rgb.endswith("BDD7EE")
+    assert sheet.cell(2, 3).comment.text == "Multiple selection, all incorrect (selected options B, C)."
     assert sheet.cell(2, 4).fill.fgColor.rgb.endswith("C6EFCE")
     assert sheet.cell(2, 5).fill.fgColor.rgb.endswith("FFEB9C")
     assert sheet.cell(2, 55).value == "Partial"

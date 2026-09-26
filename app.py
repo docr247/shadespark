@@ -8,7 +8,7 @@ import pandas as pd
 import streamlit as st
 
 from export_results import build_results_workbook
-from grading import grade_answers, questions_requiring_review
+from grading import describe_multiple_selection, grade_answers, questions_requiring_review
 from pdf_processing import render_pdf_pages, scan_pdf
 from scanner import ScanError, scan_image
 
@@ -194,6 +194,11 @@ if "results" in st.session_state:
             if selected_record["grading_status"] == "Partial":
                 question_list = ", ".join(f"Q{question}" for question in review_questions)
                 st.warning(f"Grading: Partial · Questions requiring review: {question_list}")
+                for question in review_questions:
+                    selected_answer = selected_record["answers"][question - 1]
+                    if selected_answer is not None:
+                        explanation = describe_multiple_selection(selected_answer, answer_key[question - 1])
+                        st.markdown(f"**Q{question}:** {explanation}")
             else:
                 st.success("Grading: Complete")
             script_image = selected_record.get("script_image")

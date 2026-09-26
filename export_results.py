@@ -8,6 +8,8 @@ from openpyxl.comments import Comment
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
+from grading import describe_multiple_selection
+
 CORRECT_FILL = PatternFill("solid", fgColor="C6EFCE")
 WRONG_FILL = PatternFill("solid", fgColor="FFC7CE")
 BLANK_FILL = PatternFill("solid", fgColor="FFEB9C")
@@ -39,6 +41,10 @@ def build_results_workbook(answer_key: tuple[str, ...], records: list[dict[str, 
             cell = sheet.cell(row_number, question + 1, "/".join(selected) if selected else "-")
             if selected is not None and len(selected) > 1:
                 cell.fill = INCONCLUSIVE_FILL
+                cell.comment = Comment(
+                    describe_multiple_selection(selected, answer_key[question - 1]),
+                    "ShadeSpark",
+                )
             elif outcome == "correct":
                 cell.fill = CORRECT_FILL
             elif outcome == "inconclusive":
