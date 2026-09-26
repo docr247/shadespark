@@ -11,6 +11,7 @@ from scanner import ScanError, ScanResult, scan_image
 class PageScan:
     source: str
     page: int
+    image: bytes
     result: ScanResult | None
     error: str | None
 
@@ -36,7 +37,7 @@ def scan_pdf(data: bytes, source: str) -> list[PageScan]:
     scans: list[PageScan] = []
     for page_number, image in enumerate(render_pdf_pages(data), start=1):
         try:
-            scans.append(PageScan(source, page_number, scan_image(image), None))
+            scans.append(PageScan(source, page_number, image, scan_image(image), None))
         except ScanError as exc:
-            scans.append(PageScan(source, page_number, None, str(exc)))
+            scans.append(PageScan(source, page_number, image, None, str(exc)))
     return scans

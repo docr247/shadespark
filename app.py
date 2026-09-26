@@ -37,13 +37,16 @@ st.caption("Optical marking for the 50-question MCQ answer sheet")
 
 with st.sidebar:
     st.header("Answer sheet")
-    st.download_button(
-        "Download blank PDF",
-        data=TEMPLATE_PATH.read_bytes(),
-        file_name=TEMPLATE_PATH.name,
-        mime="application/pdf",
-        use_container_width=True,
-    )
+    if TEMPLATE_PATH.exists():
+        st.download_button(
+            "Download blank PDF",
+            data=TEMPLATE_PATH.read_bytes(),
+            file_name=TEMPLATE_PATH.name,
+            mime="application/pdf",
+            use_container_width=True,
+        )
+    else:
+        st.caption("Blank answer-sheet download is unavailable.")
     st.markdown("Print at **Actual size / 100%** and scan the complete A4 page with all four corner squares visible.")
 
 st.subheader("1. Answer key")
@@ -103,6 +106,7 @@ def process_uploads() -> tuple[tuple[str, ...], list[dict[str, Any]], list[str]]
                     "grading_status": "Complete" if grading_complete else "Partial",
                     "source": page_scan.source,
                     "page": page_scan.page,
+                    "script_image": page_scan.image,
                     "warnings": " ".join(result.warnings),
                 }
             )
@@ -144,25 +148,41 @@ if "results" in st.session_state:
 
     summary_tab, detail_tab = st.tabs(["Summary", "Detailed responses"])
     with summary_tab:
-        chart_column, table_column = st.columns([2, 3])
-        with chart_column:
-            st.markdown("#### Grade distribution")
-            counts, _ = np.histogram(scores, bins=[0, 10, 20, 30, 40, 46, 51])
-            labels = ["0–9", "10–19", "20–29", "30–39", "40–45", "46–50"]
-            st.bar_chart(pd.DataFrame({"Score band": labels, "Students": counts}).set_index("Score band"))
-        with table_column:
-            st.markdown("#### Student grades")
-            display = pd.DataFrame(
-                {
-                    "Student ID": [record["student_id"] for record in filtered],
-                    "CRN": [record["crn"] or "Needs review" for record in filtered],
-                    "Score": [record["score"] for record in filtered],
-                    "Percent": [f'{record["percentage"]:.1f}%' for record in filtered],
-                    "Grading": [record["grading_status"] for record in filtered],
-                    "Source": [f'{record["source"]} p.{record["page"]}' for record in filtered],
-                }
+        st.markdown("#### Grade distribution")
+        counts, _ = np.histogram(scores, bins=[0, 10, 20, 30, 40, 46, 51])
+        labels = ["0–9", "10–19", "20–29", "30–39", "40–45", "46–50"]
+        st.bar_chart(pd.DataFrame({"Score band": labels, "Students": counts}).set_index("Score band"))
+
+        st.markdown("#### Student grades")
+        st.caption("Select a student row to view the scanned answer script.")
+        display = pd.DataFrame(
+            {
+                "Student ID": [record["student_id"] for record in filtered],
+                "CRN": [record["crn"] or "Needs review" for record in filtered],
+                "Score": [record["score"] for record in filtered],
+                "Percent": [f'{record["percentage"]:.1f}%' for record in filtered],
+                "Grading": [record["grading_status"] for record in filtered],
+                "Source": [f'{record["source"]} p.{record["page"]}' for record in filtered],
+            }
+        )
+        grade_selection = st.dataframe(
+            display,
+            hide_index=True,
+            width="stretch",
+            height=min(700, 38 + 35 * len(display)),
+            key=f"student-grades-{selected_crn}",
+            on_select="rerun",
+            selection_mode="single-row",
+        )
+        selected_rows = grade_selection.selection.rows
+        if selected_rows:
+            selected_record = filtered[selected_rows[0]]
+            st.markdown(f'#### Scanned script: {selected_record["student_id"]}')
+            st.caption(
+                f'CRN {selected_record["crn"] or "Needs review"} · '
+                f'{selected_record["source"]}, page {selected_record["page"]}'
             )
-            st.dataframe(display, hide_index=True, use_container_width=True)
+            st.image(selected_record["script_image"], width="stretch")
 
     with detail_tab:
         st.markdown("#### Question-level responses")
