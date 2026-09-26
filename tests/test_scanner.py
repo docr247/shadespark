@@ -13,6 +13,7 @@ from scanner import (
     PAGE_HEIGHT,
     PAGE_WIDTH,
     OPTIONS,
+    annotate_image,
     scan_image,
 )
 
@@ -59,3 +60,22 @@ def test_preserves_multiple_shaded_answers() -> None:
     result = scan_image(image)
     assert result.answers[0] == answers[0] + answers[1]
     assert result.statuses[0] == "multiple"
+
+
+def test_annotates_every_question_with_grading_mark() -> None:
+    image, _, _, _ = _synthetic_sheet()
+    outcomes = tuple("correct" if question % 2 == 0 else "wrong" for question in range(50))
+
+    marked_bytes = annotate_image(image, outcomes)
+    marked = cv2.imdecode(np.frombuffer(marked_bytes, dtype=np.uint8), cv2.IMREAD_COLOR)
+
+    assert marked.shape[:2] == (PAGE_HEIGHT, PAGE_WIDTH)
+    for question, outcome in enumerate(outcomes):
+        group, row = divmod(question, 10)
+        center_x = round(ANSWER_X[group][0] - 46)
+        center_y = round(ANSWER_Y[row])
+        region = marked[center_y - 14 : center_y + 15, center_x - 14 : center_x + 15]
+        if outcome == "correct":
+            assert np.any((region[:, :, 1] > 100) & (region[:, :, 1] > region[:, :, 2] * 2))
+        else:
+            assert np.any((region[:, :, 2] > 150) & (region[:, :, 2] > region[:, :, 1] * 2))

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 import cv2
 import numpy as np
@@ -164,6 +165,34 @@ def scan_aligned_page(gray: np.ndarray) -> ScanResult:
 
 def scan_image(data: bytes) -> ScanResult:
     return scan_aligned_page(align_page(decode_image(data)))
+
+
+def annotate_image(
+    data: bytes,
+    outcomes: tuple[Literal["correct", "wrong", "inconclusive"], ...],
+) -> bytes:
+    if len(outcomes) != 50:
+        raise ValueError("Exactly 50 grading outcomes are required.")
+
+    aligned = align_page(decode_image(data))
+    marked = cv2.cvtColor(aligned, cv2.COLOR_GRAY2BGR)
+    for question, outcome in enumerate(outcomes):
+        group, row = divmod(question, 10)
+        center_x = round(ANSWER_X[group][0] - 46)
+        center_y = round(ANSWER_Y[row])
+        if outcome == "correct":
+            color = (45, 145, 60)
+            cv2.line(marked, (center_x - 10, center_y), (center_x - 3, center_y + 8), color, 4, cv2.LINE_AA)
+            cv2.line(marked, (center_x - 3, center_y + 8), (center_x + 12, center_y - 10), color, 4, cv2.LINE_AA)
+        else:
+            color = (45, 45, 210)
+            cv2.line(marked, (center_x - 9, center_y - 9), (center_x + 9, center_y + 9), color, 4, cv2.LINE_AA)
+            cv2.line(marked, (center_x + 9, center_y - 9), (center_x - 9, center_y + 9), color, 4, cv2.LINE_AA)
+
+    encoded, png = cv2.imencode(".png", marked)
+    if not encoded:
+        raise ScanError("The marked script could not be encoded.")
+    return png.tobytes()
 
 
 def scan_image_file(path: str | Path) -> ScanResult:

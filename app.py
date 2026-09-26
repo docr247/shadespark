@@ -8,9 +8,9 @@ import pandas as pd
 import streamlit as st
 
 from export_results import build_results_workbook
-from grading import describe_multiple_selection, grade_answers, questions_requiring_review
+from grading import AnswerOutcome, describe_multiple_selection, grade_answers, questions_requiring_review
 from pdf_processing import render_pdf_pages, scan_pdf
-from scanner import ScanError, scan_image
+from scanner import ScanError, annotate_image, scan_image
 
 APP_DIR = Path(__file__).parent
 TEMPLATE_PATH = APP_DIR / "MCQ_Answer_Sheet_50_Questions.pdf"
@@ -38,6 +38,11 @@ st.markdown(
 
 st.title("ShadeSpark")
 st.caption("Optical Marking Made Easy")
+
+
+@st.cache_data(show_spinner=False)
+def render_marked_script(image: bytes, outcomes: tuple[AnswerOutcome, ...]) -> bytes:
+    return annotate_image(image, outcomes)
 
 with st.sidebar:
     st.header("Answer sheet")
@@ -205,7 +210,20 @@ if "results" in st.session_state:
             if script_image is None:
                 st.warning("This result was created before script viewing was enabled. Select Scan and mark again.")
             else:
-                st.image(script_image, width="stretch")
+                show_marking = st.toggle(
+                    "Show marking",
+                    value=True,
+                    key=(
+                        f'show-marking-{selected_record["source"]}-'
+                        f'{selected_record["page"]}-{selected_record["student_id"]}'
+                    ),
+                )
+                displayed_image = (
+                    render_marked_script(script_image, selected_record["outcomes"])
+                    if show_marking
+                    else script_image
+                )
+                st.image(displayed_image, width="stretch")
 
     with detail_tab:
         st.markdown("#### Question-level responses")
