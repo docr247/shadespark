@@ -22,3 +22,11 @@ def grade_answers(
     )
     score = outcomes.count("correct")
     return outcomes, score, "inconclusive" not in outcomes
+
+
+def questions_requiring_review(outcomes: tuple[AnswerOutcome, ...]) -> tuple[int, ...]:
+    return tuple(
+        question
+        for question, outcome in enumerate(outcomes, start=1)
+        if outcome == "inconclusive"
+    )

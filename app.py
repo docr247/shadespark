@@ -8,7 +8,7 @@ import pandas as pd
 import streamlit as st
 
 from export_results import build_results_workbook
-from grading import grade_answers
+from grading import grade_answers, questions_requiring_review
 from pdf_processing import render_pdf_pages, scan_pdf
 from scanner import ScanError, scan_image
 
@@ -165,8 +165,12 @@ if "results" in st.session_state:
                 "Source": [f'{record["source"]} p.{record["page"]}' for record in filtered],
             }
         )
+        summary_styles = pd.DataFrame("", index=display.index, columns=display.columns)
+        for row_index, record in enumerate(filtered):
+            if record["grading_status"] == "Partial":
+                summary_styles.loc[row_index, :] = "background-color: #e2f0d9"
         grade_selection = st.dataframe(
-            display,
+            display.style.apply(lambda _: summary_styles, axis=None),
             hide_index=True,
             width="stretch",
             height=min(700, 38 + 35 * len(display)),
@@ -182,6 +186,12 @@ if "results" in st.session_state:
                 f'CRN {selected_record["crn"] or "Needs review"} · '
                 f'{selected_record["source"]}, page {selected_record["page"]}'
             )
+            review_questions = questions_requiring_review(selected_record["outcomes"])
+            if selected_record["grading_status"] == "Partial":
+                question_list = ", ".join(f"Q{question}" for question in review_questions)
+                st.warning(f"Grading: Partial · Questions requiring review: {question_list}")
+            else:
+                st.success("Grading: Complete")
             script_image = selected_record.get("script_image")
             if script_image is None:
                 st.warning("This result was created before script viewing was enabled. Select Scan and mark again.")

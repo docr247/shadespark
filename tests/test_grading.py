@@ -5,7 +5,7 @@ from io import BytesIO
 from openpyxl import load_workbook
 
 from export_results import build_results_workbook
-from grading import grade_answer, grade_answers
+from grading import grade_answer, grade_answers, questions_requiring_review
 
 
 def test_multiple_answer_grading_rules() -> None:
@@ -13,6 +13,12 @@ def test_multiple_answer_grading_rules() -> None:
     assert grade_answer("AB", "C") == "wrong"
     assert grade_answer("A", "A") == "correct"
     assert grade_answer(None, "A") == "wrong"
+
+
+def test_questions_requiring_review_returns_inconclusive_positions() -> None:
+    outcomes = ("correct", "inconclusive", "wrong", "inconclusive")
+
+    assert questions_requiring_review(outcomes) == (2, 4)
 
 
 def test_workbook_highlights_inconclusive_answers_and_status() -> None:
