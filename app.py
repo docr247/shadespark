@@ -182,7 +182,11 @@ if "results" in st.session_state:
                 f'CRN {selected_record["crn"] or "Needs review"} · '
                 f'{selected_record["source"]}, page {selected_record["page"]}'
             )
-            st.image(selected_record["script_image"], width="stretch")
+            script_image = selected_record.get("script_image")
+            if script_image is None:
+                st.warning("This result was created before script viewing was enabled. Select Scan and mark again.")
+            else:
+                st.image(script_image, width="stretch")
 
     with detail_tab:
         st.markdown("#### Question-level responses")
