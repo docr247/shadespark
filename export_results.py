@@ -37,7 +37,9 @@ def build_results_workbook(answer_key: tuple[str, ...], records: list[dict[str, 
             zip(record["answers"], record["outcomes"], strict=True), start=1
         ):
             cell = sheet.cell(row_number, question + 1, "/".join(selected) if selected else "-")
-            if outcome == "correct":
+            if selected is not None and len(selected) > 1:
+                cell.fill = INCONCLUSIVE_FILL
+            elif outcome == "correct":
                 cell.fill = CORRECT_FILL
             elif outcome == "inconclusive":
                 cell.fill = INCONCLUSIVE_FILL
@@ -74,7 +76,7 @@ def build_results_workbook(answer_key: tuple[str, ...], records: list[dict[str, 
     legend.append(["Green", "Correct answer"])
     legend.append(["Red", "Wrong answer"])
     legend.append(["Yellow", "Blank answer"])
-    legend.append(["Blue", "Inconclusive: correct and wrong options both shaded"])
+    legend.append(["Blue", "Review issue: multiple options shaded"])
     legend["A2"].fill = CORRECT_FILL
     legend["A3"].fill = WRONG_FILL
     legend["A4"].fill = BLANK_FILL

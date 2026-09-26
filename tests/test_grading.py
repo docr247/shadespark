@@ -15,10 +15,10 @@ def test_multiple_answer_grading_rules() -> None:
     assert grade_answer(None, "A") == "wrong"
 
 
-def test_questions_requiring_review_returns_inconclusive_positions() -> None:
-    outcomes = ("correct", "inconclusive", "wrong", "inconclusive")
+def test_questions_requiring_review_returns_all_multiple_answer_positions() -> None:
+    answers = ("A", "AB", None, "CD")
 
-    assert questions_requiring_review(outcomes) == (2, 4)
+    assert questions_requiring_review(answers) == (2, 4)
 
 
 def test_workbook_highlights_inconclusive_answers_and_status() -> None:
@@ -42,7 +42,7 @@ def test_workbook_highlights_inconclusive_answers_and_status() -> None:
 
     assert sheet.cell(2, 2).value == "A/B"
     assert sheet.cell(2, 2).fill.fgColor.rgb.endswith("BDD7EE")
-    assert sheet.cell(2, 3).fill.fgColor.rgb.endswith("FFC7CE")
+    assert sheet.cell(2, 3).fill.fgColor.rgb.endswith("BDD7EE")
     assert sheet.cell(2, 4).fill.fgColor.rgb.endswith("C6EFCE")
     assert sheet.cell(2, 5).fill.fgColor.rgb.endswith("FFEB9C")
     assert sheet.cell(2, 55).value == "Partial"

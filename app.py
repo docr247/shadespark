@@ -190,7 +190,7 @@ if "results" in st.session_state:
                 f'CRN {selected_record["crn"] or "Needs review"} · '
                 f'{selected_record["source"]}, page {selected_record["page"]}'
             )
-            review_questions = questions_requiring_review(selected_record["outcomes"])
+            review_questions = questions_requiring_review(selected_record["answers"])
             if selected_record["grading_status"] == "Partial":
                 question_list = ", ".join(f"Q{question}" for question in review_questions)
                 st.warning(f"Grading: Partial · Questions requiring review: {question_list}")
